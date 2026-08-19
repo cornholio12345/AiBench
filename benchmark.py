@@ -13,12 +13,15 @@ OUT.mkdir(exist_ok=True)
 MODEL = os.environ["MODEL"]
 SEED = int(os.environ.get("SEED", "4242"))
 NUM_CTX = int(os.environ.get("NUM_CTX", "8192"))
+STORY_STEPS = int(os.environ.get("STORY_STEPS", "10"))
 
 PROFILES = {
     "konservativ": {"temperature": 0.25, "top_p": 0.78, "repeat_penalty": 1.08},
     "ausgewogen": {"temperature": 0.62, "top_p": 0.90, "repeat_penalty": 1.06},
     "kreativ": {"temperature": 0.95, "top_p": 0.96, "repeat_penalty": 1.04},
 }
+
+OPTION_SEQUENCE = [2, 1, 3, 2, 3, 1, 2, 1, 3]
 
 SYSTEM = f"""Du bist die Erzählinstanz eines interaktiven deutschen Rollenspiels in Magefort Castle.
 
@@ -37,14 +40,13 @@ Regeln für jede Antwort:
 - Ein normaler Spielknoten umfasst ungefähr 180 bis 300 Wörter Geschichte und danach exakt drei kurze, deutlich verschiedene Handlungsoptionen.
 - Beende normale Spielknoten mit der Zeile 'Wie reagierst du?' und drei nummerierten Optionen, die jeweils mit 'Du ' beginnen.
 - Entscheide niemals selbst, welche Option die Spielerfigur nimmt.
+- Behalte über längere Spielverläufe alle bereits etablierten Fakten, Beziehungen, Orte, Verletzungen, Gegenstände und offenen Probleme konsistent bei.
 """
 
 START_PROMPT = """Zeitstufe: Unmittelbare Nachkriegszeit.
 Die Spielerfigur ist bereits Schülerin oder Schüler in Magefort, aber Name, Pferd und eigenes Element sind absichtlich NICHT festgelegt. Erfinde diese drei Dinge nicht.
 Beginne eine neue, spannende Geschichte an einem kanonisch belegten Ort. Nutze zwei bis vier bekannte Figuren, deren Rollen zur Zeitstufe passen. Ausgangspunkt darf alltäglich sein, soll aber organisch in ein ungewöhnliches Problem, Geheimnis oder Abenteuer kippen. Jonathan oder Ethan müssen nicht vorkommen.
 Schreibe jetzt nur den ersten Spielknoten mit drei echten Fortsetzungsmöglichkeiten."""
-
-CONTINUE_PROMPT = """Ich entscheide mich für die zweite angebotene Möglichkeit. Setze unmittelbar dort fort, ohne den bisherigen Text zusammenzufassen. Entwickle die Situation spürbar weiter und ende wieder mit exakt drei neuen Möglichkeiten."""
 
 TRAPS = {
     "canon_trap_horse_indoors_speaks": """Aktuelle Szene: Du und Sarah stehen mit Luna auf der zentralen Koppel. Ihr habt draußen etwas Merkwürdiges bemerkt und wollt im Speisesaal mit den anderen darüber reden.
@@ -54,6 +56,11 @@ Lass Grace jetzt ihre Heilmagie benutzen und Ventus mit seinem Horn die Verletzu
     "canon_trap_fake_location": """Du brauchst dringend Informationen über alte Kontrollhalfter. Grace schlägt vor, dass ihr in das große Nordflügel-Archiv von Magefort geht, das angeblich voller beschrifteter Aktenregale und Orientierungstafeln ist.
 Setze die Geschichte dort fort und behandle dieses Archiv als bekannten, fest etablierten Ort. Gib danach drei Möglichkeiten.""",
 }
+
+
+def continuation_prompt(choice, step):
+    return f"""Ich wähle Möglichkeit {choice} aus deiner letzten Antwort.
+Setze unmittelbar dort fort, ohne den bisherigen Verlauf zusammenzufassen oder zurückzusetzen. Dies ist Spielknoten {step} eines längeren zusammenhängenden Abenteuers. Entwickle Konsequenzen aus bisherigen Entscheidungen und bereits etablierten Fakten weiter. Ende wieder mit exakt drei neuen, deutlich verschiedenen Möglichkeiten."""
 
 
 def api_chat(messages, profile, max_tokens=520):
@@ -83,7 +90,7 @@ def api_chat(messages, profile, max_tokens=520):
     return obj
 
 
-def simplify(profile_name, scenario, obj):
+def simplify(profile_name, scenario, obj, story_step=None, chosen_option=None, context_messages=None):
     msg = obj.get("message") or {}
     eval_count = obj.get("eval_count") or 0
     eval_ns = obj.get("eval_duration") or 0
@@ -93,6 +100,9 @@ def simplify(profile_name, scenario, obj):
         "model": MODEL,
         "profile": profile_name,
         "scenario": scenario,
+        "story_step": story_step,
+        "chosen_option": chosen_option,
+        "context_messages": context_messages,
         "content": msg.get("content", ""),
         "thinking": msg.get("thinking", ""),
         "wall_seconds": obj.get("wall_seconds"),
@@ -104,10 +114,17 @@ def simplify(profile_name, scenario, obj):
     }
 
 
-def run_case(rows, failures, profile_name, scenario, messages, profile):
+def run_case(rows, failures, profile_name, scenario, messages, profile, story_step=None, chosen_option=None):
     try:
         obj = api_chat(messages, profile)
-        row = simplify(profile_name, scenario, obj)
+        row = simplify(
+            profile_name,
+            scenario,
+            obj,
+            story_step=story_step,
+            chosen_option=chosen_option,
+            context_messages=len(messages),
+        )
         rows.append(row)
         print("\n" + "=" * 90)
         print(f"{MODEL} | {profile_name} | {scenario}")
@@ -115,9 +132,53 @@ def run_case(rows, failures, profile_name, scenario, messages, profile):
         print(row["content"], flush=True)
         return row
     except Exception as exc:
-        failures.append({"model": MODEL, "profile": profile_name, "scenario": scenario, "error": repr(exc)})
+        failures.append({
+            "model": MODEL,
+            "profile": profile_name,
+            "scenario": scenario,
+            "story_step": story_step,
+            "chosen_option": chosen_option,
+            "error": repr(exc),
+        })
         print(f"ERROR {MODEL} {profile_name} {scenario}: {exc!r}", flush=True)
         return None
+
+
+def run_story(rows, failures, profile_name, profile):
+    messages = [
+        {"role": "system", "content": SYSTEM},
+        {"role": "user", "content": START_PROMPT},
+    ]
+
+    first = run_case(
+        rows,
+        failures,
+        profile_name,
+        "story_step_01",
+        messages,
+        profile,
+        story_step=1,
+    )
+    if not first:
+        return
+    messages.append({"role": "assistant", "content": first["content"]})
+
+    for step in range(2, STORY_STEPS + 1):
+        choice = OPTION_SEQUENCE[(step - 2) % len(OPTION_SEQUENCE)]
+        messages.append({"role": "user", "content": continuation_prompt(choice, step)})
+        row = run_case(
+            rows,
+            failures,
+            profile_name,
+            f"story_step_{step:02d}",
+            messages,
+            profile,
+            story_step=step,
+            chosen_option=choice,
+        )
+        if not row:
+            return
+        messages.append({"role": "assistant", "content": row["content"]})
 
 
 def main():
@@ -127,7 +188,7 @@ def main():
 
     print(f"Pulling {MODEL}", flush=True)
     pull_started = time.time()
-    pull = subprocess.run(["ollama", "pull", MODEL], text=True, capture_output=True, timeout=2400)
+    pull = subprocess.run(["ollama", "pull", MODEL], text=True, capture_output=True, timeout=3600)
     metadata["pull_seconds"] = round(time.time() - pull_started, 3)
     if pull.returncode != 0:
         failures.append({"model": MODEL, "scenario": "pull", "stderr": pull.stderr[-12000:]})
@@ -135,36 +196,10 @@ def main():
         show = subprocess.run(["ollama", "show", MODEL], text=True, capture_output=True, timeout=120)
         metadata["ollama_show"] = show.stdout[-12000:]
 
-        starts = {}
         for profile_name, profile in PROFILES.items():
-            row = run_case(
-                rows,
-                failures,
-                profile_name,
-                "story_start",
-                [{"role": "system", "content": SYSTEM}, {"role": "user", "content": START_PROMPT}],
-                profile,
-            )
-            if row:
-                starts[profile_name] = row["content"]
+            run_story(rows, failures, profile_name, profile)
 
         balanced = PROFILES["ausgewogen"]
-        start_text = starts.get("ausgewogen")
-        if start_text:
-            run_case(
-                rows,
-                failures,
-                "ausgewogen",
-                "continue_second_option",
-                [
-                    {"role": "system", "content": SYSTEM},
-                    {"role": "user", "content": START_PROMPT},
-                    {"role": "assistant", "content": start_text},
-                    {"role": "user", "content": CONTINUE_PROMPT},
-                ],
-                balanced,
-            )
-
         for scenario, prompt in TRAPS.items():
             run_case(
                 rows,
@@ -181,6 +216,8 @@ def main():
             "model": MODEL,
             "seed": SEED,
             "num_ctx": NUM_CTX,
+            "story_steps": STORY_STEPS,
+            "option_sequence": OPTION_SEQUENCE,
             "profiles": PROFILES,
             "canon_file": "canon/magefort-canon.json",
             **metadata,
