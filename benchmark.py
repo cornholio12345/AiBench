@@ -35,6 +35,9 @@ Regeln für jede Antwort:
 - Pferde verhalten sich im Normalfall glaubwürdig pferdisch. Sie führen keine normalen Gespräche und betreten keine Wohn-, Unterrichts-, Speise-, Büro- oder sonstigen Schlossräume.
 - Magie folgt Element, Verbund, Beziehung, Übung und Erschöpfung. Keine beliebigen Superkräfte und keine permanente Telepathie.
 - Schreibe idiomatisches, lebendiges Deutsch in der Du-Perspektive. Keine Meta-Kommentare über Kanon, Prompt oder Regeln.
+- Zielgruppe sind ungefähr 10-jährige Leserinnen und Leser. Die Sprache muss leicht verständlich, klar und konkret sein, aber niemals infantil, verniedlichend oder herablassend.
+- Bevorzuge kurze bis mittellange Sätze und geläufige Wörter. Schwierige oder magische Begriffe sind erlaubt, wenn ihre Bedeutung aus dem Zusammenhang verständlich wird.
+- Vermeide unnötige Schachtelsätze, abstraktes Amtsdeutsch, überladene Metaphern und künstlich erwachsene Prosa. Vereinfache dabei nicht die Handlung, Gefühle oder Figuren zu Babysprache.
 - Figuren sollen ihre kanonische Persönlichkeit zeigen statt austauschbare Erklärfiguren zu sein.
 - Erzähle konkrete Handlung, Beziehungen und Atmosphäre. Vermeide pädagogische Minispiele, Rätselketten aus Hinweisschildern und generische 'magische Aufgabe'-Strukturen.
 - Ein normaler Spielknoten umfasst ungefähr 180 bis 300 Wörter Geschichte und danach exakt drei kurze, deutlich verschiedene Handlungsoptionen.
@@ -46,7 +49,7 @@ Regeln für jede Antwort:
 START_PROMPT = """Zeitstufe: Unmittelbare Nachkriegszeit.
 Die Spielerfigur ist bereits Schülerin oder Schüler in Magefort, aber Name, Pferd und eigenes Element sind absichtlich NICHT festgelegt. Erfinde diese drei Dinge nicht.
 Beginne eine neue, spannende Geschichte an einem kanonisch belegten Ort. Nutze zwei bis vier bekannte Figuren, deren Rollen zur Zeitstufe passen. Ausgangspunkt darf alltäglich sein, soll aber organisch in ein ungewöhnliches Problem, Geheimnis oder Abenteuer kippen. Jonathan oder Ethan müssen nicht vorkommen.
-Schreibe jetzt nur den ersten Spielknoten mit drei echten Fortsetzungsmöglichkeiten."""
+Schreibe jetzt nur den ersten Spielknoten mit drei echten Fortsetzungsmöglichkeiten. Schreibe klar für ungefähr 10-Jährige, ohne kindische oder verniedlichende Sprache."""
 
 TRAPS = {
     "canon_trap_horse_indoors_speaks": """Aktuelle Szene: Du und Sarah stehen mit Luna auf der zentralen Koppel. Ihr habt draußen etwas Merkwürdiges bemerkt und wollt im Speisesaal mit den anderen darüber reden.
@@ -60,7 +63,7 @@ Setze die Geschichte dort fort und behandle dieses Archiv als bekannten, fest et
 
 def continuation_prompt(choice, step):
     return f"""Ich wähle Möglichkeit {choice} aus deiner letzten Antwort.
-Setze unmittelbar dort fort, ohne den bisherigen Verlauf zusammenzufassen oder zurückzusetzen. Dies ist Spielknoten {step} eines längeren zusammenhängenden Abenteuers. Entwickle Konsequenzen aus bisherigen Entscheidungen und bereits etablierten Fakten weiter. Ende wieder mit exakt drei neuen, deutlich verschiedenen Möglichkeiten."""
+Setze unmittelbar dort fort, ohne den bisherigen Verlauf zusammenzufassen oder zurückzusetzen. Dies ist Spielknoten {step} eines längeren zusammenhängenden Abenteuers. Entwickle Konsequenzen aus bisherigen Entscheidungen und bereits etablierten Fakten weiter. Behalte die leicht verständliche, aber nicht infantile Sprache für ungefähr 10-Jährige bei. Ende wieder mit exakt drei neuen, deutlich verschiedenen Möglichkeiten."""
 
 
 def api_chat(messages, profile, max_tokens=520):
@@ -117,14 +120,7 @@ def simplify(profile_name, scenario, obj, story_step=None, chosen_option=None, c
 def run_case(rows, failures, profile_name, scenario, messages, profile, story_step=None, chosen_option=None):
     try:
         obj = api_chat(messages, profile)
-        row = simplify(
-            profile_name,
-            scenario,
-            obj,
-            story_step=story_step,
-            chosen_option=chosen_option,
-            context_messages=len(messages),
-        )
+        row = simplify(profile_name, scenario, obj, story_step=story_step, chosen_option=chosen_option, context_messages=len(messages))
         rows.append(row)
         print("\n" + "=" * 90)
         print(f"{MODEL} | {profile_name} | {scenario}")
@@ -132,14 +128,7 @@ def run_case(rows, failures, profile_name, scenario, messages, profile, story_st
         print(row["content"], flush=True)
         return row
     except Exception as exc:
-        failures.append({
-            "model": MODEL,
-            "profile": profile_name,
-            "scenario": scenario,
-            "story_step": story_step,
-            "chosen_option": chosen_option,
-            "error": repr(exc),
-        })
+        failures.append({"model": MODEL, "profile": profile_name, "scenario": scenario, "story_step": story_step, "chosen_option": chosen_option, "error": repr(exc)})
         print(f"ERROR {MODEL} {profile_name} {scenario}: {exc!r}", flush=True)
         return None
 
@@ -149,16 +138,7 @@ def run_story(rows, failures, profile_name, profile):
         {"role": "system", "content": SYSTEM},
         {"role": "user", "content": START_PROMPT},
     ]
-
-    first = run_case(
-        rows,
-        failures,
-        profile_name,
-        "story_step_01",
-        messages,
-        profile,
-        story_step=1,
-    )
+    first = run_case(rows, failures, profile_name, "story_step_01", messages, profile, story_step=1)
     if not first:
         return
     messages.append({"role": "assistant", "content": first["content"]})
@@ -166,16 +146,7 @@ def run_story(rows, failures, profile_name, profile):
     for step in range(2, STORY_STEPS + 1):
         choice = OPTION_SEQUENCE[(step - 2) % len(OPTION_SEQUENCE)]
         messages.append({"role": "user", "content": continuation_prompt(choice, step)})
-        row = run_case(
-            rows,
-            failures,
-            profile_name,
-            f"story_step_{step:02d}",
-            messages,
-            profile,
-            story_step=step,
-            chosen_option=choice,
-        )
+        row = run_case(rows, failures, profile_name, f"story_step_{step:02d}", messages, profile, story_step=step, chosen_option=choice)
         if not row:
             return
         messages.append({"role": "assistant", "content": row["content"]})
@@ -195,20 +166,11 @@ def main():
     else:
         show = subprocess.run(["ollama", "show", MODEL], text=True, capture_output=True, timeout=120)
         metadata["ollama_show"] = show.stdout[-12000:]
-
         for profile_name, profile in PROFILES.items():
             run_story(rows, failures, profile_name, profile)
-
         balanced = PROFILES["ausgewogen"]
         for scenario, prompt in TRAPS.items():
-            run_case(
-                rows,
-                failures,
-                "ausgewogen",
-                scenario,
-                [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}],
-                balanced,
-            )
+            run_case(rows, failures, "ausgewogen", scenario, [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}], balanced)
 
     safe = MODEL.replace(":", "-").replace("/", "-")
     result = {
@@ -220,6 +182,7 @@ def main():
             "option_sequence": OPTION_SEQUENCE,
             "profiles": PROFILES,
             "canon_file": "canon/magefort-canon.json",
+            "language_target": "leicht verständlich für ungefähr 10-Jährige, aber nicht infantil",
             **metadata,
         },
         "rows": rows,
