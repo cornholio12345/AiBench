@@ -1,1 +1,2 @@
 Trigger for the Magefort local-model benchmark matrix.
+10-turn rerun requested after extending all sampling profiles.
