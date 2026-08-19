@@ -12,7 +12,7 @@ jobs:
   benchmark:
     name: ${{ matrix.id }}
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 350
     strategy:
       fail-fast: false
       max-parallel: 7
@@ -69,6 +69,7 @@ jobs:
         env:
           MODEL: ${{ matrix.model }}
           NUM_CTX: '8192'
+          STORY_STEPS: '10'
           SEED: '4242'
         run: python3 benchmark.py
 
