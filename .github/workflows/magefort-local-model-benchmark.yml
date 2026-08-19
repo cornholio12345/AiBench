@@ -15,19 +15,15 @@ jobs:
     timeout-minutes: 350
     strategy:
       fail-fast: false
-      max-parallel: 7
+      max-parallel: 5
       matrix:
         include:
           - id: qwen35-4b
             model: qwen3.5:4b
-          - id: qwen35-9b
-            model: qwen3.5:9b
           - id: gemma3-4b
             model: gemma3:4b
           - id: ministral3-3b
             model: ministral-3:3b
-          - id: ministral3-8b
-            model: ministral-3:8b
           - id: phi4mini-38b
             model: phi4-mini:3.8b
           - id: llama32-3b
