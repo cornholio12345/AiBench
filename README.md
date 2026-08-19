@@ -1,13 +1,19 @@
 # AiBench
 
-Temporary reproducible benchmark for small local LLMs as the narrator of a German branching Magefort RPG.
+Reproducible benchmark for local Ollama LLMs as the narrator of a German branching Magefort RPG.
 
-The benchmark measures the raw material needed for later judging in three dimensions:
+Each GitHub model runs the same Magefort canon, seed and decision sequence with three sampling profiles:
 
-- canon adherence
-- German language quality
-- creativity / immersion
+- konservativ: temperature 0.25
+- ausgewogen: temperature 0.62
+- kreativ: temperature 0.95
 
-Each model receives the same Magefort canon, seed and scenario set. Three sampling profiles generate independent story openings; the balanced profile additionally gets a continuation test and three adversarial canon tests.
+Each profile plays 10 connected RPG turns. Three adversarial canon traps run afterwards. The generation prompt targets clear German that is easy to understand for roughly 10-year-olds without becoming infantil, cutesy or patronizing.
 
-Results are stored as short-lived GitHub Actions artifacts. This repository contains no application secrets.
+Evaluation dimensions are canon adherence (50%), German language quality including age-appropriate clarity (25%), and creativity / immersion (25%). Speed and readability metrics are recorded as additional diagnostics.
+
+## Resume behavior
+
+`benchmark.py` atomically updates the model JSON after every successful turn. The GitHub workflow also saves the `results` directory to an Actions cache after every turn. A failed/retried job or a later run on the same benchmark PR restores the newest cache and skips already completed turns, so normally at most the currently generating turn is lost.
+
+Final results are uploaded as short-lived GitHub Actions artifacts. This repository contains no application secrets.
