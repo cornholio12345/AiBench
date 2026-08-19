@@ -7,6 +7,11 @@ on:
 
 permissions:
   contents: read
+  actions: read
+
+concurrency:
+  group: magefort-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   benchmark:
@@ -30,7 +35,16 @@ jobs:
             model: llama3.2:3b
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+
+      - name: Restore latest checkpoint
+        id: restore-checkpoint
+        uses: actions/cache/restore@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-bootstrap
+          restore-keys: |
+            magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-
 
       - name: Runner info
         run: |
@@ -53,21 +67,311 @@ jobs:
           set -euo pipefail
           nohup env OLLAMA_NUM_PARALLEL=1 OLLAMA_MAX_LOADED_MODELS=1 ollama serve > /tmp/ollama.log 2>&1 &
           for i in {1..60}; do
-            if curl -fsS http://127.0.0.1:11434/api/version; then
-              exit 0
-            fi
+            if curl -fsS http://127.0.0.1:11434/api/version; then exit 0; fi
             sleep 1
           done
           cat /tmp/ollama.log
           exit 1
 
-      - name: Run benchmark
-        env:
-          MODEL: ${{ matrix.model }}
-          NUM_CTX: '8192'
-          STORY_STEPS: '10'
-          SEED: '4242'
-        run: python3 benchmark.py
+      - name: Pull model
+        run: ollama pull "${{ matrix.model }}"
+
+      - name: konservativ story step 01
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile konservativ --step 1
+      - name: Save checkpoint konservativ-01
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-konservativ-01
+
+      - name: konservativ story step 02
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile konservativ --step 2
+      - name: Save checkpoint konservativ-02
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-konservativ-02
+
+      - name: konservativ story step 03
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile konservativ --step 3
+      - name: Save checkpoint konservativ-03
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-konservativ-03
+
+      - name: konservativ story step 04
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile konservativ --step 4
+      - name: Save checkpoint konservativ-04
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-konservativ-04
+
+      - name: konservativ story step 05
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile konservativ --step 5
+      - name: Save checkpoint konservativ-05
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-konservativ-05
+
+      - name: konservativ story step 06
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile konservativ --step 6
+      - name: Save checkpoint konservativ-06
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-konservativ-06
+
+      - name: konservativ story step 07
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile konservativ --step 7
+      - name: Save checkpoint konservativ-07
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-konservativ-07
+
+      - name: konservativ story step 08
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile konservativ --step 8
+      - name: Save checkpoint konservativ-08
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-konservativ-08
+
+      - name: konservativ story step 09
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile konservativ --step 9
+      - name: Save checkpoint konservativ-09
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-konservativ-09
+
+      - name: konservativ story step 10
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile konservativ --step 10
+      - name: Save checkpoint konservativ-10
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-konservativ-10
+
+      - name: ausgewogen story step 01
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile ausgewogen --step 1
+      - name: Save checkpoint ausgewogen-01
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-ausgewogen-01
+
+      - name: ausgewogen story step 02
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile ausgewogen --step 2
+      - name: Save checkpoint ausgewogen-02
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-ausgewogen-02
+
+      - name: ausgewogen story step 03
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile ausgewogen --step 3
+      - name: Save checkpoint ausgewogen-03
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-ausgewogen-03
+
+      - name: ausgewogen story step 04
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile ausgewogen --step 4
+      - name: Save checkpoint ausgewogen-04
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-ausgewogen-04
+
+      - name: ausgewogen story step 05
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile ausgewogen --step 5
+      - name: Save checkpoint ausgewogen-05
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-ausgewogen-05
+
+      - name: ausgewogen story step 06
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile ausgewogen --step 6
+      - name: Save checkpoint ausgewogen-06
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-ausgewogen-06
+
+      - name: ausgewogen story step 07
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile ausgewogen --step 7
+      - name: Save checkpoint ausgewogen-07
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-ausgewogen-07
+
+      - name: ausgewogen story step 08
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile ausgewogen --step 8
+      - name: Save checkpoint ausgewogen-08
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-ausgewogen-08
+
+      - name: ausgewogen story step 09
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile ausgewogen --step 9
+      - name: Save checkpoint ausgewogen-09
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-ausgewogen-09
+
+      - name: ausgewogen story step 10
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile ausgewogen --step 10
+      - name: Save checkpoint ausgewogen-10
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-ausgewogen-10
+
+      - name: kreativ story step 01
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile kreativ --step 1
+      - name: Save checkpoint kreativ-01
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-kreativ-01
+
+      - name: kreativ story step 02
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile kreativ --step 2
+      - name: Save checkpoint kreativ-02
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-kreativ-02
+
+      - name: kreativ story step 03
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile kreativ --step 3
+      - name: Save checkpoint kreativ-03
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-kreativ-03
+
+      - name: kreativ story step 04
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile kreativ --step 4
+      - name: Save checkpoint kreativ-04
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-kreativ-04
+
+      - name: kreativ story step 05
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile kreativ --step 5
+      - name: Save checkpoint kreativ-05
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-kreativ-05
+
+      - name: kreativ story step 06
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile kreativ --step 6
+      - name: Save checkpoint kreativ-06
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-kreativ-06
+
+      - name: kreativ story step 07
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile kreativ --step 7
+      - name: Save checkpoint kreativ-07
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-kreativ-07
+
+      - name: kreativ story step 08
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile kreativ --step 8
+      - name: Save checkpoint kreativ-08
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-kreativ-08
+
+      - name: kreativ story step 09
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile kreativ --step 9
+      - name: Save checkpoint kreativ-09
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-kreativ-09
+
+      - name: kreativ story step 10
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --profile kreativ --step 10
+      - name: Save checkpoint kreativ-10
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-kreativ-10
+
+      - name: canon_trap_horse_indoors_speaks
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --trap canon_trap_horse_indoors_speaks
+      - name: Save checkpoint canon_trap_horse_indoors_speaks
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-canon_trap_horse_indoors_speaks
+
+      - name: canon_trap_wrong_magic
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --trap canon_trap_wrong_magic
+      - name: Save checkpoint canon_trap_wrong_magic
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-canon_trap_wrong_magic
+
+      - name: canon_trap_fake_location
+        run: >-
+          python3 benchmark.py --model "${{ matrix.model }}" --canon canon/magefort-canon.json --out results --trap canon_trap_fake_location
+      - name: Save checkpoint canon_trap_fake_location
+        uses: actions/cache/save@v5
+        with:
+          path: results
+          key: magefort-${{ matrix.id }}-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_id }}-canon_trap_fake_location
 
       - name: Diagnostics
         if: always()
@@ -77,11 +381,12 @@ jobs:
           df -h / || true
           tail -200 /tmp/ollama.log || true
 
-      - name: Upload result
+      - name: Upload final result
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: magefort-${{ matrix.id }}
           path: results/*.json
           if-no-files-found: warn
           retention-days: 3
+          overwrite: true
