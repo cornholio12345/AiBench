@@ -1,0 +1,90 @@
+name: Magefort local-model benchmark
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: ${{ matrix.id }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 7
+      matrix:
+        include:
+          - id: qwen35-4b
+            model: qwen3.5:4b
+          - id: qwen35-9b
+            model: qwen3.5:9b
+          - id: gemma3-4b
+            model: gemma3:4b
+          - id: ministral3-3b
+            model: ministral-3:3b
+          - id: ministral3-8b
+            model: ministral-3:8b
+          - id: phi4mini-38b
+            model: phi4-mini:3.8b
+          - id: llama32-3b
+            model: llama3.2:3b
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Runner info
+        run: |
+          echo "CPUs: $(nproc)"
+          free -h
+          df -h /
+
+      - name: Install Ollama
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama --version
+          sudo systemctl stop ollama 2>/dev/null || true
+          pkill -f 'ollama serve' 2>/dev/null || true
+
+      - name: Start Ollama
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup env OLLAMA_NUM_PARALLEL=1 OLLAMA_MAX_LOADED_MODELS=1 ollama serve > /tmp/ollama.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:11434/api/version; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/ollama.log
+          exit 1
+
+      - name: Run benchmark
+        env:
+          MODEL: ${{ matrix.model }}
+          NUM_CTX: '8192'
+          SEED: '4242'
+        run: python3 benchmark.py
+
+      - name: Diagnostics
+        if: always()
+        run: |
+          ollama ps || true
+          free -h || true
+          df -h / || true
+          tail -200 /tmp/ollama.log || true
+
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: magefort-${{ matrix.id }}
+          path: results/*.json
+          if-no-files-found: warn
+          retention-days: 3
