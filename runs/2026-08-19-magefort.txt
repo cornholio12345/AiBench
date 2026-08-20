@@ -1,0 +1,4 @@
+Trigger for the Magefort local-model benchmark matrix.
+10-turn rerun requested after extending all sampling profiles.
+Rerun with clear, non-infantile language target for approximately 10-year-olds and GitHub-only small/medium model matrix.
+Per-turn atomic JSON checkpointing plus GitHub cache persistence enabled for resume after retries/restarts.
